@@ -1,0 +1,54 @@
+version: "3.9"
+services:
+  controller:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./controller:/app
+    command: >
+      bash -lc "pip install -r /app/../requirements.txt &&
+                hypercorn app:app --bind 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+
+  replica1:
+    image: python:3.11-slim
+    working_dir: /app
+    environment:
+      - MEDIA_ROOT=/app/media
+    volumes:
+      - ./replica:/app
+      - ./replica1/media:/app/media
+    command: >
+      bash -lc "pip install -r /app/../requirements.txt &&
+                hypercorn app:app --bind 0.0.0.0:8101"
+    ports:
+      - "8101:8101"
+
+  replica2:
+    image: python:3.11-slim
+    working_dir: /app
+    environment:
+      - MEDIA_ROOT=/app/media
+    volumes:
+      - ./replica:/app
+      - ./replica2/media:/app/media
+    command: >
+      bash -lc "pip install -r /app/../requirements.txt &&
+                hypercorn app:app --bind 0.0.0.0:8102"
+    ports:
+      - "8102:8102"
+
+  replica3:
+    image: python:3.11-slim
+    working_dir: /app
+    environment:
+      - MEDIA_ROOT=/app/media
+    volumes:
+      - ./replica:/app
+      - ./replica3/media:/app/media
+    command: >
+      bash -lc "pip install -r /app/../requirements.txt &&
+                hypercorn app:app --bind 0.0.0.0:8103"
+    ports:
+      - "8103:8103"

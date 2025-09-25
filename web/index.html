@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CDN Video Player</title>
+  </head>
+  <body>
+    <h2>Test Video Player</h2>
+
+    <!-- Video element -->
+    <video id="video" controls width="720" crossorigin="anonymous"></video>
+
+
+    <!-- Load hls.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+      // Point to controller endpoint (not a single segment)
+      const manifest = "https://localhost:8000/play/1sFLfFCnGgk";
+
+      const video = document.getElementById("video");
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          console.error("HLS.js error", data);
+        });
+        hls.loadSource(manifest);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        // Safari fallback (plays HLS natively)
+        video.src = manifest;
+      } else {
+        alert("HLS not supported in this browser");
+      }
+    </script>
+  </body>
+</html>
