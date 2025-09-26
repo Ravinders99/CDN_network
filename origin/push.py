@@ -7,12 +7,13 @@ REPLICAS = [
     "http://127.0.0.1:8103",  # replica3
 ]
 
+# Function to push all files in a folder to all replicas
 def push_folder(video_id: str, folder: pathlib.Path):
     """Push all files for one video to every replica."""
     if not folder.exists():
         print(f"[ERROR] HLS folder not found: {folder}")
         return
-
+    # Iterate over replicas and upload files
     for replica in REPLICAS:
         print(f"[INFO] Uploading {video_id} to {replica}")
         with httpx.Client() as c:
