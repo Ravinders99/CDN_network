@@ -19,13 +19,23 @@ app.add_middleware(
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "media")
 os.makedirs(MEDIA_ROOT, exist_ok=True)
 
-# Serve static files from /videos endpoint
-app.mount("/videos", StaticFiles(directory=MEDIA_ROOT), name="videos")
-
 # Health check (optional)
 @app.get("/health")
 def health():
     return {"status": "Replica is alive"}
+
+# List available videos
+@app.get("/list")
+def list_videos():
+    videos = []
+    if os.path.exists(MEDIA_ROOT):
+        for item in os.listdir(MEDIA_ROOT):
+            item_path = os.path.join(MEDIA_ROOT, item)
+            if os.path.isdir(item_path):
+                # Check if it has index.m3u8 (valid HLS video)
+                if os.path.exists(os.path.join(item_path, "index.m3u8")):
+                    videos.append(item)
+    return {"videos": videos, "count": len(videos)}
 
 # Ingest endpoint for Origin pushes
 @app.post("/ingest/{video_id}")
@@ -38,3 +48,6 @@ async def ingest(video_id: str, file: UploadFile = File(...)):
             await out.write(chunk)
 
     return JSONResponse({"ok": True, "video_id": video_id, "file": file.filename})
+
+# Serve static files from /videos endpoint - must be last
+app.mount("/videos", StaticFiles(directory=MEDIA_ROOT), name="videos")

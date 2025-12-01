@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDN Test - Simple Video List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #141414;
+            color: white;
+            padding: 20px;
+        }
+        .video-card {
+            background: #333;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .video-card:hover {
+            background: #444;
+        }
+        .video-title {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        .video-meta {
+            color: #aaa;
+            font-size: 0.9em;
+        }
+        #status {
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CDN Video Test</h1>
+    <div id="status">Loading...</div>
+    <div id="videoList"></div>
+
+    <script>
+        console.log('Test page loaded');
+
+        // Simple video list
+        const videos = [
+            { id: '1sFLfFCnGgk', title: 'Amazing Nature Documentary' },
+            { id: '2Jfk2limySw', title: 'Tech Innovation Showcase' },
+            { id: '4Er3DosVO5w', title: 'Travel Adventure Highlights' },
+            { id: '8oC50pKc6Vc', title: 'Music Performance Live' },
+            { id: '9CRgT0LMZQA', title: 'Educational Content Series' },
+            { id: 'BvpEAfTN7fk', title: 'Sports Action Compilation' },
+            { id: 'HDMKovooZ3o', title: 'Cooking Masterclass' },
+            { id: 'IKEwEzTaMCU', title: 'Art & Design Tutorial' },
+            { id: 'movie', title: 'Sample Movie' }
+        ];
+
+        function testControllerConnection() {
+            console.log('Testing controller connection...');
+            document.getElementById('status').innerHTML = 'Testing controller connection...';
+
+            fetch('https://localhost:8000/health', {
+                method: 'GET'
+            })
+            .then(response => {
+                console.log('Controller response:', response.status);
+                if (response.ok) {
+                    document.getElementById('status').innerHTML = '✅ Controller connected successfully';
+                    loadVideoList();
+                } else {
+                    document.getElementById('status').innerHTML = '❌ Controller responded with error: ' + response.status;
+                }
+            })
+            .catch(error => {
+                console.error('Controller connection failed:', error);
+                document.getElementById('status').innerHTML = '❌ Controller connection failed: ' + error.message;
+            });
+        }
+
+        function loadVideoList() {
+            console.log('Loading video list...');
+            const videoList = document.getElementById('videoList');
+
+            videos.forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.innerHTML = `
+                    <div class="video-title">${video.title}</div>
+                    <div class="video-meta">ID: ${video.id} | Click to test playback</div>
+                `;
+
+                card.addEventListener('click', () => {
+                    testVideoPlayback(video);
+                });
+
+                videoList.appendChild(card);
+            });
+
+            console.log('Video list loaded');
+        }
+
+        function testVideoPlayback(video) {
+            console.log('Testing video playback for:', video.id);
+            const url = `https://localhost:8000/play/${video.id}`;
+
+            fetch(url, {
+                method: 'GET'
+            })
+            .then(response => {
+                console.log('Video response:', response.status);
+                if (response.ok) {
+                    alert(`✅ Video ${video.title} is available!\nURL: ${url}\nStatus: ${response.status}`);
+                } else {
+                    alert(`❌ Video ${video.title} failed!\nStatus: ${response.status}`);
+                }
+            })
+            .catch(error => {
+                console.error('Video test failed:', error);
+                alert(`❌ Video test failed: ${error.message}`);
+            });
+        }
+
+        // Start the test
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, starting tests...');
+            testControllerConnection();
+        });
+    </script>
+</body>
+</html>

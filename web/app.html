@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDN Video Streaming Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1><i class="fas fa-play-circle"></i> CDN Stream</h1>
+            </div>
+            <div class="nav-actions">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search videos..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-container">
+                <div class="hero-main">
+                    <div class="hero-content">
+                        <h1 class="hero-title">Experience Premium Video Streaming</h1>
+                        <div class="hero-search">
+                            <input type="text" id="heroSearchInput" placeholder="Search for videos..." class="hero-search-input">
+                            <button class="hero-search-button">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Movie Carousels Section -->
+        <section class="carousels-section">
+            <!-- Latest Movies -->
+            <div class="movie-carousel">
+                <div class="carousel-header">
+                    <h2 class="carousel-title" id="carouselTitle">Latest Movies</h2>
+                </div>
+                <div class="carousel-container">
+                    <button class="carousel-nav carousel-prev" data-carousel="latest">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="carousel-track" id="latestMovies">
+                        <!-- Movies will be dynamically generated -->
+                    </div>
+                    <button class="carousel-nav carousel-next" data-carousel="latest">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Video Player Modal -->
+    <div class="player-modal" id="playerModal">
+        <div class="player-container">
+            <div class="player-header">
+                <h3 id="playerTitle">Video Player</h3>
+                <div class="player-controls">
+                    <button class="btn-icon" id="pipButton" title="Picture in Picture">
+                        <i class="fas fa-external-link-alt"></i>
+                    </button>
+                    <button class="btn-icon" id="fullscreenButton" title="Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button class="btn-icon" id="closePlayer" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="video-wrapper">
+                <video id="videoPlayer" controls crossorigin="anonymous">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="player-overlay" id="playerOverlay">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="player-info">
+                <div class="video-details">
+                    <h4 id="videoTitle">Video Title</h4>
+                    <p id="videoDescription">Video description will appear here</p>
+                    <div class="video-stats">
+                        <span id="videoDuration">--:--</span>
+                        <span id="videoSize">-- MB</span>
+                        <span id="videoQuality">-- Quality</span>
+                    </div>
+                </div>
+                <div class="player-actions">
+                    <button class="btn btn-primary" id="favoriteButton">
+                        <i class="far fa-heart"></i> Add to Favorites
+                    </button>
+                    <button class="btn btn-secondary" id="shareButton">
+                        <i class="fas fa-share"></i> Share
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="error-modal" id="errorModal">
+        <div class="error-container">
+            <div class="error-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3>Oops! Something went wrong</h3>
+            <p id="errorMessage">An error occurred while loading the video.</p>
+            <div class="error-actions">
+                <button class="btn btn-primary" id="retryButton">
+                    <i class="fas fa-redo"></i> Try Again
+                </button>
+                <button class="btn btn-secondary" id="closeError">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="app.js"></script>
+</body>
+</html>
