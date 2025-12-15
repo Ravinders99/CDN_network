@@ -51,7 +51,8 @@ class VideoApp {
             const title = this.generateTitle(id);
             const description = this.generateDescription(id);
             const duration = this.generateDuration();
-            const thumbnail = `https://picsum.photos/seed/${id}/800/1000`;
+            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const fallbackThumbnail = `https://picsum.photos/seed/${id}/800/1000`;
 
             return `
                 <div class="hero-slide ${index === 0 ? 'active' : ''}" data-id="${id}">
@@ -69,7 +70,7 @@ class VideoApp {
                     </div>
                     <div class="hero-image-wrapper">
                         <div class="hero-image">
-                            <img src="${thumbnail}" alt="${title}" loading="lazy">
+                            <img src="${thumbnail}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='${fallbackThumbnail}';">
                         </div>
                     </div>
                 </div>
@@ -94,13 +95,14 @@ class VideoApp {
 
         container.innerHTML = videos.map((id, index) => {
             const title = this.generateTitle(id);
-            const thumbnail = `https://picsum.photos/seed/movie-${id}-${index}/300/450`;
+            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const fallbackThumbnail = `https://picsum.photos/seed/movie-${id}-${index}/300/450`;
             const delay = index * 0.05;
 
             return `
                 <div class="movie-card" data-id="${id}" style="animation-delay: ${delay}s">
                     <div class="movie-poster">
-                        <img src="${thumbnail}" alt="${title}">
+                        <img src="${thumbnail}" alt="${title}" onerror="this.onerror=null; this.src='${fallbackThumbnail}';">
                         <div class="movie-overlay">
                             <div class="play-button">
                                 <i class="fas fa-play"></i>
@@ -166,13 +168,14 @@ class VideoApp {
         // Render filtered results
         container.innerHTML = filtered.map((id, index) => {
             const title = this.generateTitle(id);
-            const thumbnail = `https://picsum.photos/seed/movie-${id}-${index}/300/450`;
+            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const fallbackThumbnail = `https://picsum.photos/seed/movie-${id}-${index}/300/450`;
             const delay = index * 0.05;
 
             return `
                 <div class="movie-card" data-id="${id}" style="animation-delay: ${delay}s">
                     <div class="movie-poster">
-                        <img src="${thumbnail}" alt="${title}">
+                        <img src="${thumbnail}" alt="${title}" onerror="this.onerror=null; this.src='${fallbackThumbnail}';">
                         <div class="movie-overlay">
                             <div class="play-button">
                                 <i class="fas fa-play"></i>
@@ -280,12 +283,13 @@ class VideoApp {
         videoGridContainer.innerHTML = this.videos.map(id => {
             const title = this.generateTitle(id);
             const duration = this.generateDuration();
-            const thumbnail = `https://picsum.photos/seed/${id}/320/180`;
+            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const fallbackThumbnail = `https://picsum.photos/seed/${id}/320/180`;
 
             return `
                 <div class="video-grid-item" data-id="${id}">
                     <div class="video-grid-thumb">
-                        <img src="${thumbnail}" alt="${title}" loading="lazy">
+                        <img src="${thumbnail}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='${fallbackThumbnail}';">
                         <div class="video-grid-overlay">
                             <div class="video-grid-play-icon">
                                 <i class="fas fa-play"></i>
@@ -316,12 +320,13 @@ class VideoApp {
         const duration = this.generateDuration();
         const views = this.generateViews();
         const timeAgo = this.getTimeAgo();
-        const thumbnail = `https://picsum.photos/seed/${id}/640/360`;
+        const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+        const fallbackThumbnail = `https://picsum.photos/seed/${id}/640/360`;
 
         return `
             <div class="video-card" data-id="${id}">
                 <div class="video-thumbnail">
-                    <img src="${thumbnail}" alt="${title}" loading="lazy">
+                    <img src="${thumbnail}" alt="${title}" loading="lazy" onerror="this.onerror=null; this.src='${fallbackThumbnail}';">
                     <div class="video-play-overlay">
                         <div class="play-icon">
                             <i class="fas fa-play"></i>
@@ -492,6 +497,15 @@ class VideoApp {
             this.showToast('Link copied to clipboard', 'success');
         });
 
+        // Server selection buttons
+        const serverButtons = document.querySelectorAll('.server-btn');
+        serverButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const server = btn.getAttribute('data-server');
+                this.switchServer(server);
+            });
+        });
+
         // Error modal close
         const closeError = document.getElementById('closeError');
         const retryButton = document.getElementById('retryButton');
@@ -502,13 +516,17 @@ class VideoApp {
         });
     }
 
-    async playVideo(videoId) {
+    async playVideo(videoId, server = 'auto') {
         const modal = document.getElementById('playerModal');
         const videoPlayer = document.getElementById('videoPlayer');
         const playerOverlay = document.getElementById('playerOverlay');
         const playerTitle = document.getElementById('playerTitle');
         const videoTitle = document.getElementById('videoTitle');
         const videoDescription = document.getElementById('videoDescription');
+
+        // Store current video ID for server switching
+        this.currentVideoId = videoId;
+        this.currentServer = server;
 
         // Show modal
         modal.classList.add('active');
@@ -520,11 +538,23 @@ class VideoApp {
         videoTitle.textContent = title;
         videoDescription.textContent = this.generateDescription(videoId);
 
+        // Update server button states
+        this.updateServerButtons(server);
+
         // Show loading
         playerOverlay.classList.add('active');
 
         try {
-            const videoUrl = `http://localhost:8001/play/${videoId}`;
+            // Determine video URL based on server selection
+            let videoUrl;
+            if (server === 'auto') {
+                // Use controller for load balancing
+                videoUrl = `http://localhost:8001/play/${videoId}`;
+            } else {
+                // Direct replica URL
+                const port = 8100 + parseInt(server);
+                videoUrl = `http://localhost:${port}/videos/${videoId}/index.m3u8`;
+            }
 
             // Destroy previous HLS instance
             if (this.hls) {
@@ -594,6 +624,36 @@ class VideoApp {
         icon.classList.add('far');
     }
 
+    updateServerButtons(server) {
+        // Update button states to show which server is active
+        const buttons = document.querySelectorAll('.server-btn');
+        buttons.forEach(btn => {
+            const btnServer = btn.getAttribute('data-server');
+            if (btnServer === server) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    switchServer(server) {
+        // Switch to a different server without closing the player
+        if (this.currentVideoId) {
+            // Save current playback position
+            const videoPlayer = document.getElementById('videoPlayer');
+            const currentTime = videoPlayer.currentTime;
+
+            // Reload video with new server
+            this.playVideo(this.currentVideoId, server).then(() => {
+                // Restore playback position
+                if (currentTime > 0) {
+                    videoPlayer.currentTime = currentTime;
+                }
+            });
+        }
+    }
+
     togglePiP() {
         const videoPlayer = document.getElementById('videoPlayer');
         if (document.pictureInPictureElement) {
@@ -655,23 +715,13 @@ class VideoApp {
     }
 
     generateTitle(id) {
-        const titles = [
-            'Amazing Nature Documentary',
-            'Tech Innovation Showcase',
-            'Travel Adventure Highlights',
-            'Music Performance Live',
-            'Educational Content Series',
-            'Sports Action Compilation',
-            'Cooking Masterclass',
-            'Art & Design Tutorial',
-            'Science Experiments',
-            'Lifestyle & Wellness'
-        ];
-        const hash = id.split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-        }, 0);
-        return titles[Math.abs(hash) % titles.length];
+        // Find the index of this video in the videos array
+        const index = this.videos.indexOf(id);
+        if (index !== -1) {
+            return `Video ${index + 1}`;
+        }
+        // Fallback if video not found in array
+        return `Video ${id}`;
     }
 
     generateDescription(id) {

@@ -925,11 +925,53 @@ body {
     margin-bottom: 1rem;
 }
 
+.server-selector {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
 .video-stats {
     display: flex;
     gap: 1.5rem;
     font-size: 0.9rem;
     color: var(--text-secondary);
+}
+
+.server-selector label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.server-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.server-btn {
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 500;
+}
+
+.server-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-color);
+}
+
+.server-btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
 }
 
 .player-actions {

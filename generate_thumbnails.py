@@ -26,6 +26,8 @@ def generate_thumbnail(video_path, output_path, timestamp="00:00:02", width=300,
         '-ss', timestamp,
         '-vframes', '1',
         '-vf', f'scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}',
+        '-pix_fmt', 'yuvj420p',  # Use JPEG-compatible YUV format
+        '-strict', 'unofficial',  # Allow non-standard YUV color space
         '-y',  # Overwrite output file if exists
         str(output_path)
     ]
@@ -55,11 +57,11 @@ def process_replica_videos(replica_path):
     Args:
         replica_path: Path to the replica directory (e.g., replica1)
     """
-    videos_dir = Path(replica_path) / 'videos'
+    videos_dir = Path(replica_path) / 'media'
     thumbnails_dir = Path(replica_path) / 'thumbnails'
 
     if not videos_dir.exists():
-        print(f"✗ Videos directory not found: {videos_dir}")
+        print(f"✗ Media directory not found: {videos_dir}")
         return
 
     print(f"\n📁 Processing {replica_path}...")

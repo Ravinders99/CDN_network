@@ -18,9 +18,11 @@ This **Content Delivery Network (CDN)** is built with FastAPI and Hypercorn, des
 
 ### Key Features
 - **Origin Server**: Video processing and content preparation with FFmpeg
-- **Replica Servers**: Distributed content storage and delivery
+- **Replica Servers**: Distributed content storage and delivery with thumbnail serving
 - **Controller**: Load balancer with round-robin distribution
-- **Web Client**: Browser-based HLS video player
+- **Web Client**: Browser-based HLS video player with server selection
+- **Thumbnail System**: Automatic extraction of video frames from HLS segments
+- **Manual Server Selection**: Direct replica access or automatic load balancing
 - **HTTPS Security**: Encrypted traffic over HTTP/2
 - **Docker Deployment**: Containerized microservices architecture
 
@@ -386,6 +388,229 @@ app.add_middleware(
 - Algorithm: Round-robin (simple, fair distribution)
 - Health checks: Basic timestamp tracking
 - Failover: Automatic exclusion of failed replicas
+
+---
+
+## Thumbnail Generation System
+
+### Overview
+
+The CDN includes an automatic thumbnail generation system that extracts video frames from HLS segments using FFmpeg. Thumbnails are served alongside video content to provide visual previews in the web interface.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  THUMBNAIL GENERATION FLOW                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┐
+│  generate_thumbnails │
+│      .py Script      │
+└──────────┬───────────┘
+           │
+           │ 1. Scans replica*/media/ directories
+           │
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    Video Segment Files                       │
+│  replica1/media/video1/segment_000.ts                       │
+│  replica1/media/video2/segment_000.ts                       │
+│  ...                                                         │
+└──────────┬───────────────────────────────────────────────────┘
+           │
+           │ 2. FFmpeg extraction
+           │    - Extract frame at 00:00:02
+           │    - Scale to 300x450 (poster size)
+           │    - Convert YUV → JPEG (yuvj420p)
+           │
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                   Thumbnail Files                            │
+│  replica1/thumbnails/video1.jpg                             │
+│  replica1/thumbnails/video2.jpg                             │
+│  ...                                                         │
+└──────────┬───────────────────────────────────────────────────┘
+           │
+           │ 3. Served via HTTP
+           │    GET /thumbnails/{video_id}.jpg
+           │
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    Web Client (Browser)                      │
+│  <img src="http://localhost:8101/thumbnails/video1.jpg">   │
+│  Fallback: <img src="https://picsum.photos/...">            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Details
+
+**FFmpeg Command**:
+```bash
+ffmpeg -i {segment_file} \
+  -ss 00:00:02 \
+  -vframes 1 \
+  -vf 'scale=300:450:force_original_aspect_ratio=increase,crop=300:450' \
+  -pix_fmt yuvj420p \
+  -strict unofficial \
+  -y {output_thumbnail}
+```
+
+**Parameters**:
+- `-ss 00:00:02`: Seek to 2 seconds into the video
+- `-vframes 1`: Extract single frame
+- `-vf scale=300:450`: Resize to 300x450 pixels
+- `-pix_fmt yuvj420p`: JPEG-compatible YUV color space
+- `-strict unofficial`: Allow non-standard color space conversion
+- `-y`: Overwrite existing files
+
+**Thumbnail Serving**:
+```python
+# Replica server (FastAPI)
+THUMBNAILS_ROOT = os.environ.get("THUMBNAILS_ROOT", "thumbnails")
+app.mount("/thumbnails", StaticFiles(directory=THUMBNAILS_ROOT), name="thumbnails")
+```
+
+**Client-Side Fallback**:
+```javascript
+const thumbnail = `http://localhost:8101/thumbnails/${videoId}.jpg`;
+const fallbackThumbnail = `https://picsum.photos/seed/movie-${id}/300/450`;
+
+<img src="${thumbnail}"
+     onerror="this.onerror=null; this.src='${fallbackThumbnail}';">
+```
+
+### Color Space Handling
+
+**Problem**: Default FFmpeg MJPEG encoder doesn't support non-full-range YUV (TV range).
+
+**Solution**:
+- Use `-pix_fmt yuvj420p` for JPEG-compatible full-range YUV
+- Add `-strict unofficial` to allow non-standard conversion
+- Handles both TV range (yuv420p) and full range (yuvj420p) source videos
+
+**Supported Formats**:
+- ✅ H.264 (Main profile, yuv420p)
+- ✅ H.264 (High profile, yuv420p, bt709)
+- ✅ Various resolutions (720p, 1080p, 4K)
+- ✅ Variable bitrates
+
+---
+
+## Server Selection Feature
+
+### Overview
+
+The web client provides manual server selection, allowing users to choose which replica serves their video content or use automatic load balancing through the controller.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              SERVER SELECTION USER INTERFACE                │
+└─────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│                  Video Player Modal                    │
+│  ┌──────────────────────────────────────────────────┐ │
+│  │  Video Title                                     │ │
+│  │  Description...                                  │ │
+│  │                                                  │ │
+│  │  Select Server:                                  │ │
+│  │  ┌──────────┐ ┌──────┐ ┌──────┐ ┌──────┐       │ │
+│  │  │   Auto   │ │ Srv1 │ │ Srv2 │ │ Srv3 │       │ │
+│  │  │(Active)  │ │      │ │      │ │      │       │ │
+│  │  └──────────┘ └──────┘ └──────┘ └──────┘       │ │
+│  │                                                  │ │
+│  │  Duration: 2:30  Size: 15MB  Quality: 1080p    │ │
+│  └──────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────┘
+```
+
+### Server Selection Modes
+
+**1. Auto (Load Balanced)**:
+```
+Client → Controller → Round-Robin → Replica
+URL: http://localhost:8001/play/{videoId}
+Flow: Controller redirects (302) to selected replica
+```
+
+**2. Direct Replica Access**:
+```
+Client → Replica (Direct)
+Server 1: http://localhost:8101/videos/{videoId}/index.m3u8
+Server 2: http://localhost:8102/videos/{videoId}/index.m3u8
+Server 3: http://localhost:8103/videos/{videoId}/index.m3u8
+```
+
+### Implementation
+
+**Frontend (JavaScript)**:
+```javascript
+async playVideo(videoId, server = 'auto') {
+    let videoUrl;
+
+    if (server === 'auto') {
+        // Use controller for load balancing
+        videoUrl = `http://localhost:8001/play/${videoId}`;
+    } else {
+        // Direct replica access
+        const port = 8100 + parseInt(server);
+        videoUrl = `http://localhost:${port}/videos/${videoId}/index.m3u8`;
+    }
+
+    // Load video with HLS.js
+    this.hls.loadSource(videoUrl);
+}
+
+switchServer(server) {
+    // Save current playback position
+    const currentTime = videoPlayer.currentTime;
+
+    // Reload with new server
+    this.playVideo(this.currentVideoId, server);
+
+    // Restore playback position
+    videoPlayer.currentTime = currentTime;
+}
+```
+
+**Server Selection UI**:
+```html
+<div class="server-selector">
+    <label>Select Server:</label>
+    <div class="server-buttons">
+        <button class="server-btn active" data-server="auto">
+            Auto (Load Balanced)
+        </button>
+        <button class="server-btn" data-server="1">Server 1</button>
+        <button class="server-btn" data-server="2">Server 2</button>
+        <button class="server-btn" data-server="3">Server 3</button>
+    </div>
+</div>
+```
+
+### Use Cases
+
+**Auto Load Balancing**:
+- Default mode for normal usage
+- Distributes load across all replicas
+- Controller handles failover automatically
+
+**Direct Server Access**:
+- **Testing**: Verify specific replica functionality
+- **Debugging**: Isolate server-specific issues
+- **Performance**: Compare replica performance
+- **Geographic Preference**: Select closer replica (future feature)
+
+### Benefits
+
+1. **User Control**: Users can choose their preferred delivery path
+2. **Debugging**: Easy to test individual replicas
+3. **Seamless Switching**: Change servers without restarting video
+4. **Position Preservation**: Playback continues from same timestamp
+5. **Visual Feedback**: Active server highlighted in UI
 
 ---
 

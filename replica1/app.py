@@ -15,7 +15,9 @@ app.add_middleware(
 )
 # Folder where this replica stores video content
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "media")
+THUMBNAILS_ROOT = os.environ.get("THUMBNAILS_ROOT", "thumbnails")
 os.makedirs(MEDIA_ROOT, exist_ok=True)
+os.makedirs(THUMBNAILS_ROOT, exist_ok=True)
 
 # Health check (optional)
 @app.get("/health")
@@ -46,6 +48,9 @@ async def ingest(video_id: str, file: UploadFile = File(...)):
             await out.write(chunk)
 
     return JSONResponse({"ok": True, "video_id": video_id, "file": file.filename})
+
+# Serve thumbnails
+app.mount("/thumbnails", StaticFiles(directory=THUMBNAILS_ROOT), name="thumbnails")
 
 # Serve static files from /videos endpoint - must be last
 app.mount("/videos", StaticFiles(directory=MEDIA_ROOT), name="videos")
