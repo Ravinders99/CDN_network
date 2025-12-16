@@ -1,56 +1,114 @@
+# # replica1/app.py   (copy the same file into replica2/app.py & replica3/app.py)
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.staticfiles import StaticFiles
+# from pathlib import Path
+
+# app = FastAPI()
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# BASE_DIR = Path(__file__).resolve().parent
+# VIDEOS_ROOT = BASE_DIR / "videos"
+# VIDEOS_ROOT.mkdir(parents=True, exist_ok=True)
+
+# # This makes:
+# #   /videos/1sFLfFCnGgk/master.m3u8
+# #   /videos/1sFLfFCnGgk/segment_000.ts
+# app.mount("/replica1/videos", StaticFiles(directory=VIDEOS_ROOT), name="videos")
+
+
+# @app.get("/health")
+# def health():
+#     return {"status": "replica alive"}
+
+# replica1/app.py
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-import os, aiofiles
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+import aiofiles
+import os
+
+# ---------------------------------------------------
+# REPLICA CONFIG
+# ---------------------------------------------------
+REPLICA_ID = "replica1"   # change to replica2 / replica3 in other replicas
+
+BASE_DIR = Path(__file__).resolve().parent
+VIDEOS_DIR = BASE_DIR / "videos"       # HLS video folder
+THUMB_DIR = BASE_DIR / "thumbnails"    # thumbnails folder
+
+VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+THUMB_DIR.mkdir(parents=True, exist_ok=True)
+
+# ---------------------------------------------------
+# FASTAPI APP
+# ---------------------------------------------------
 app = FastAPI()
-
-
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["http://127.0.0.1:5500"] for stricter security
+    allow_origins=["*"],   # Caddy terminates SSL → safe
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Folder where this replica stores video content
-MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "media")
-THUMBNAILS_ROOT = os.environ.get("THUMBNAILS_ROOT", "thumbnails")
-os.makedirs(MEDIA_ROOT, exist_ok=True)
-os.makedirs(THUMBNAILS_ROOT, exist_ok=True)
 
-# Health check (optional)
+# ---------------------------------------------------
+# HEALTH CHECK
+# ---------------------------------------------------
 @app.get("/health")
 def health():
-    return {"status": "Replica is alive"}
+    return {"replica": REPLICA_ID, "status": "alive"}
 
-# List available videos
+# ---------------------------------------------------
+# LIST ALL VIDEOS
+# ---------------------------------------------------
 @app.get("/list")
 def list_videos():
     videos = []
-    if os.path.exists(MEDIA_ROOT):
-        for item in os.listdir(MEDIA_ROOT):
-            item_path = os.path.join(MEDIA_ROOT, item)
-            if os.path.isdir(item_path):
-                # Check if it has index.m3u8 (valid HLS video)
-                if os.path.exists(os.path.join(item_path, "index.m3u8")):
-                    videos.append(item)
-    return {"videos": videos, "count": len(videos)}
 
-# Ingest endpoint for Origin pushes
+    for folder in VIDEOS_DIR.iterdir():
+        if folder.is_dir() and (folder / "master.m3u8").exists():
+            videos.append(folder.name)
+
+    return {"replica": REPLICA_ID, "videos": videos, "count": len(videos)}
+
+# ---------------------------------------------------
+# INGEST - ORIGIN PUSHES SEGMENTS / MASTER FILES
+# ---------------------------------------------------
 @app.post("/ingest/{video_id}")
 async def ingest(video_id: str, file: UploadFile = File(...)):
-    dst = os.path.join(MEDIA_ROOT, video_id)
-    os.makedirs(dst, exist_ok=True)
+    dst_dir = VIDEOS_DIR / video_id
+    dst_dir.mkdir(parents=True, exist_ok=True)
 
-    async with aiofiles.open(os.path.join(dst, file.filename), "wb") as out:
-        while chunk := await file.read(1024 * 1024):  # 1 MB chunks
+    dst_file = dst_dir / file.filename
+
+    async with aiofiles.open(dst_file, "wb") as out:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
             await out.write(chunk)
 
-    return JSONResponse({"ok": True, "video_id": video_id, "file": file.filename})
+    return JSONResponse({
+        "ok": True,
+        "replica": REPLICA_ID,
+        "saved": str(dst_file)
+    })
 
-# Serve thumbnails
-app.mount("/thumbnails", StaticFiles(directory=THUMBNAILS_ROOT), name="thumbnails")
+# ---------------------------------------------------
+# STATIC SERVING (CRITICAL)
+# ---------------------------------------------------
+# Caddy reverse-proxy accesses:  /replica1/videos/<id>/master.m3u8
+app.mount(f"/videos", StaticFiles(directory=VIDEOS_DIR), name="videos")
 
-# Serve static files from /videos endpoint - must be last
-app.mount("/videos", StaticFiles(directory=MEDIA_ROOT), name="videos")
+
+

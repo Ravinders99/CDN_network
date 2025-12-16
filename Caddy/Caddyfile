@@ -1,0 +1,38 @@
+https://localhost, https://127.0.0.1 {
+
+    tls internal
+    encode gzip
+
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods GET,POST,OPTIONS
+        Access-Control-Allow-Headers *
+    }
+
+    # Frontend
+    root * /Users/ravindersingh/Desktop/cdn_network1/web
+    file_server
+
+    # Controller
+    handle_path /controller/* {
+        reverse_proxy http://127.0.0.1:8001
+    }
+
+    # Replicas
+    handle_path /replica1/* {
+        reverse_proxy http://127.0.0.1:8101
+    }
+
+    handle_path /replica2/* {
+        reverse_proxy http://127.0.0.1:8102
+    }
+
+    handle_path /replica3/* {
+        reverse_proxy http://127.0.0.1:8103
+    }
+
+    # Origin
+    handle_path /origin/* {
+        reverse_proxy http://127.0.0.1:9000
+    }
+}

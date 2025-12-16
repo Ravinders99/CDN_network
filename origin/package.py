@@ -1,25 +1,62 @@
-import subprocess, pathlib
+# origin/package.py
+from pathlib import Path
+import subprocess
+import sys
 
-videos_dir = pathlib.Path("/Users/ravindersingh/Desktop/cdn_network/cdn/videos")
-output_dir = pathlib.Path("hls_out")
-output_dir.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+INPUT_DIR = PROJECT_ROOT / "videos_input"
+OUTPUT_DIR = PROJECT_ROOT / "origin" / "videos"
 
-for video in videos_dir.glob("*.mp4"):
-    video_id = video.stem  # e.g. movie1.mp4 -> movie1
-    target_dir = output_dir / video_id
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def package_video(input_file: Path) -> Path:
+    """Convert input mp4 into an HLS set at origin/videos/<video_id>/."""
+    if not input_file.exists():
+        raise FileNotFoundError(input_file)
+
+    video_id = input_file.stem
+    target_dir = OUTPUT_DIR / video_id
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Processing {video.name} -> {target_dir}")
+    master_path = target_dir / "master.m3u8"
+
     cmd = [
         "ffmpeg",
-        "-i", str(video),
-        "-profile:v", "main",
-        "-level", "4.0",
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-hls_time", "4",
-        "-hls_playlist_type", "vod",
-        "-hls_segment_filename", str(target_dir / "segment_%03d.ts"),
-        str(target_dir / "index.m3u8"),
+        "-y",
+        "-i",
+        str(input_file),
+        "-codec:v",
+        "libx264",
+        "-codec:a",
+        "aac",
+        "-ac",
+        "2",
+        "-b:v",
+        "2000k",
+        "-hls_time",
+        "4",
+        "-hls_playlist_type",
+        "vod",
+        "-hls_segment_filename",
+        str(target_dir / "segment_%03d.ts"),
+        str(master_path),
     ]
+
+    print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
+    print(f"Packaged {input_file.name} -> {master_path}")
+    return target_dir
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 2:
+        input_path = Path(sys.argv[1])
+        package_video(input_path)
+    else:
+        mp4s = sorted(INPUT_DIR.glob("*.mp4"))
+        if not mp4s:
+            print(f"No .mp4 files in {INPUT_DIR}")
+            sys.exit(1)
+        for f in mp4s:
+            package_video(f)

@@ -19,7 +19,7 @@ class VideoApp {
         const contentLayoutContainer = document.getElementById('contentLayoutContainer');
 
         try {
-            const response = await fetch('http://localhost:8001/videos');
+            const response = await fetch('/controller/videos');
             const data = await response.json();
             this.videos = data.videos || [];
             console.log('✓ Loaded videos from server:', this.videos);
@@ -51,7 +51,7 @@ class VideoApp {
             const title = this.generateTitle(id);
             const description = this.generateDescription(id);
             const duration = this.generateDuration();
-            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const thumbnail = `/origin/thumbnails/${id}.jpg`;
             const fallbackThumbnail = `https://picsum.photos/seed/${id}/800/1000`;
 
             return `
@@ -95,7 +95,7 @@ class VideoApp {
 
         container.innerHTML = videos.map((id, index) => {
             const title = this.generateTitle(id);
-            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const thumbnail = `/origin/thumbnails/${id}.jpg`;
             const fallbackThumbnail = `https://picsum.photos/seed/movie-${id}-${index}/300/450`;
             const delay = index * 0.05;
 
@@ -168,7 +168,7 @@ class VideoApp {
         // Render filtered results
         container.innerHTML = filtered.map((id, index) => {
             const title = this.generateTitle(id);
-            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const thumbnail = `/origin/thumbnails/${id}.jpg`;
             const fallbackThumbnail = `https://picsum.photos/seed/movie-${id}-${index}/300/450`;
             const delay = index * 0.05;
 
@@ -283,7 +283,7 @@ class VideoApp {
         videoGridContainer.innerHTML = this.videos.map(id => {
             const title = this.generateTitle(id);
             const duration = this.generateDuration();
-            const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+            const thumbnail = `/origin/thumbnails/${id}.jpg`;
             const fallbackThumbnail = `https://picsum.photos/seed/${id}/320/180`;
 
             return `
@@ -320,7 +320,7 @@ class VideoApp {
         const duration = this.generateDuration();
         const views = this.generateViews();
         const timeAgo = this.getTimeAgo();
-        const thumbnail = `http://localhost:8101/thumbnails/${id}.jpg`;
+        const thumbnail = `/origin/thumbnails/${id}.jpg`;
         const fallbackThumbnail = `https://picsum.photos/seed/${id}/640/360`;
 
         return `
@@ -547,14 +547,16 @@ class VideoApp {
         try {
             // Determine video URL based on server selection
             let videoUrl;
-            if (server === 'auto') {
-                // Use controller for load balancing
-                videoUrl = `http://localhost:8001/play/${videoId}`;
-            } else {
-                // Direct replica URL
-                const port = 8100 + parseInt(server);
-                videoUrl = `http://localhost:${port}/videos/${videoId}/index.m3u8`;
-            }
+           if (server === 'auto') {
+                    const res = await fetch(`/controller/play/${videoId}`);
+                    const data = await res.json();
+
+                    videoUrl = data.redirect; 
+                    // ex: /replica2/videos/ID/master.m3u8 OR /origin/videos/ID/master.m3u8
+                } else {
+                    videoUrl = `/replica${server}/videos/${videoId}/master.m3u8`;
+                }
+
 
             // Destroy previous HLS instance
             if (this.hls) {
