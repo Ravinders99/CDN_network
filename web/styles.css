@@ -835,6 +835,7 @@ body {
     background: rgba(0, 0, 0, 0.95);
     z-index: 2000;
     padding: 2rem;
+    overflow-y: auto;
 }
 
 .player-modal.active {
@@ -846,7 +847,7 @@ body {
     margin: 0 auto;
     background: var(--bg-secondary);
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .player-header {
