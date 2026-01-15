@@ -48,3 +48,27 @@ def play(video_id: str):
     base = info["base"]
 
     return RedirectResponse(url=f"{base}/videos/{video_id}/index.m3u8", status_code=302)
+
+@app.get("/videos")
+async def get_videos():
+    """Fetch list of available videos from replicas"""
+    if not replicas:
+        raise HTTPException(503, "No replicas registered")
+
+    import httpx
+    all_videos = set()
+
+    # Query first available replica
+    for replica_id, info in replicas.items():
+        try:
+            async with httpx.AsyncClient(verify=False) as client:
+                response = await client.get(f"{info['base']}/list", timeout=5.0)
+                if response.status_code == 200:
+                    data = response.json()
+                    all_videos.update(data.get("videos", []))
+                    break  # Got videos from one replica, that's enough
+        except Exception as e:
+            print(f"Failed to fetch videos from {replica_id}: {e}")
+            continue
+
+    return {"videos": sorted(list(all_videos)), "count": len(all_videos)}

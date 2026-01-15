@@ -4,12 +4,12 @@ import urllib3
 # Disable only the warning (not verification globally!)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-CONTROLLER = "https://localhost:8000/register"
+CONTROLLER = "http://localhost:8001/register"
 
 replicas = [
-    {"replica_id": "replica1", "base_url": "https://localhost:8101"},
-    {"replica_id": "replica2", "base_url": "https://localhost:8102"},
-    {"replica_id": "replica3", "base_url": "https://localhost:8103"},
+    {"replica_id": "replica1", "base_url": "http://localhost:8101"},
+    {"replica_id": "replica2", "base_url": "http://localhost:8102"},
+    {"replica_id": "replica3", "base_url": "http://localhost:8103"},
 ]
 
 
